@@ -2,19 +2,18 @@
 
 ![Stream Deck RuneLite](streamdeck-runelite.png)
 
-A RuneLite plugin that exposes OSRS game state via a local HTTP API for Stream Deck integration.
+A RuneLite plugin that sends OSRS game state to a local Stream Deck server for integration.
 
 ## Features
 
-- Exposes game state as JSON via HTTP endpoint
-- Tracks prayer states (all prayers + quick prayer)
+- Sends game state as JSON to your Stream Deck server
+- Tracks active prayers
 - Monitors player stats (HP, Prayer Points, Run Energy, Special Attack)
 - HP status tracking (normal, poisoned, venomed, diseased, and combinations)
 - Special attack availability detection (knows which weapons have specs)
 - Run toggle state
 - Detects active interface tab
-- Configurable server port
-- CORS-enabled for browser-based clients
+- Configurable server URL
 
 ## Installation
 
@@ -24,50 +23,41 @@ Install from the RuneLite Plugin Hub by searching for "Stream Deck Integration".
 
 In RuneLite settings, navigate to the Stream Deck Integration plugin:
 
-- **Enable HTTP Server**: Toggle the HTTP server on/off (default: ON)
-- **Server Port**: Set the port for the HTTP server (default: 8085)
+- **Enable Client**: Toggle sending game state on/off (default: ON)
+- **Server URL**: URL of your Stream Deck server (default: `http://localhost:8085/state`)
 
-## API Endpoint
+## How It Works
 
-### GET /state
+The plugin sends game state to your Stream Deck server every game tick (~600ms) via HTTP POST. Your Stream Deck application must host a server to receive this data.
 
-Returns current game state as JSON.
+## JSON Format
 
-**URL:** `http://localhost:8085/state`
+The plugin POSTs JSON data in the following format:
 
-**Response Example:**
 ```json
 {
   "player": {
     "name": "PlayerName",
-    "world": 420
+    "world": 301
   },
   "stats": {
     "hp": {
-      "current": 85,
+      "current": 99,
       "max": 99,
       "status": "normal"
     },
     "prayer": {
-      "current": 60,
+      "current": 70,
       "max": 70
     },
     "runEnergy": 10000,
     "runEnabled": true,
     "specialAttack": 100,
     "specialAttackEnabled": false,
-    "weaponItemId": 11802,
     "specialAttackAvailable": true
   },
-  "prayers": {
-    "quickPrayerActive": false,
-    "thick_skin": false,
-    "burst_of_strength": false,
-    "protect_from_melee": true,
-    "piety": true
-  },
-  "activeTab": "inventory",
-  "timestamp": 1699999999999
+  "activePrayers": ["protect_from_melee", "piety"],
+  "activeTab": "inventory"
 }
 ```
 
@@ -84,38 +74,16 @@ Returns current game state as JSON.
 | `runEnabled` | boolean | Whether run is toggled on |
 | `specialAttack` | int | Special attack percentage (0-100) |
 | `specialAttackEnabled` | boolean | Whether special attack is toggled on |
-| `weaponItemId` | int | Item ID of equipped weapon (-1 if none) |
 | `specialAttackAvailable` | boolean | Whether equipped weapon has a special attack |
 
 ### Active Tab Values
 
 `none`, `combat`, `skills`, `quests`, `inventory`, `equipment`, `prayer`, `magic`, `grouping`, `account`, `friends`, `settings`, `emotes`, `music`
 
-**Error Response (Not Logged In):**
-```json
-{
-  "error": "Not logged in"
-}
-```
-
-## Testing
-
-Test the endpoint using curl:
-
-```bash
-curl http://localhost:8085/state
-```
-
-Or open in your browser:
-```
-http://localhost:8085/state
-```
-
 ## Security Notes
 
-- The HTTP server only binds to `localhost` (127.0.0.1)
-- No external network access is possible
-- No authentication is required (local-only access)
+- The plugin only makes outbound connections to localhost by default
+- No external network access unless you configure a different URL
 - Does not expose any account credentials or sensitive data
 
 ## License

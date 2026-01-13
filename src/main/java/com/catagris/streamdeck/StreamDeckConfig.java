@@ -8,22 +8,22 @@ import net.runelite.client.config.ConfigItem;
 public interface StreamDeckConfig extends Config
 {
 	@ConfigItem(
-		keyName = "enableServer",
-		name = "Enable HTTP Server",
-		description = "Enable the HTTP server for Stream Deck integration"
+		keyName = "enableClient",
+		name = "Enable Client",
+		description = "Enable sending game state to Stream Deck server"
 	)
-	default boolean enableServer()
+	default boolean enableClient()
 	{
 		return true;
 	}
 
 	@ConfigItem(
-		keyName = "serverPort",
-		name = "Server Port",
-		description = "Port for the HTTP server"
+		keyName = "serverUrl",
+		name = "Server URL",
+		description = "URL of the Stream Deck server to send game state to"
 	)
-	default int serverPort()
+	default String serverUrl()
 	{
-		return 8085;
+		return "http://localhost:8085/state";
 	}
 }

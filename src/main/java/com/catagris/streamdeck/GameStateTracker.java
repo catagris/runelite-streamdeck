@@ -1,6 +1,7 @@
 package com.catagris.streamdeck;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
@@ -197,28 +198,23 @@ public class GameStateTracker
 		stats.addProperty("runEnabled", client.getVarpValue(173) == 1); // VarPlayer 173 (OPTION_RUN)
 		stats.addProperty("specialAttack", client.getVarpValue(300) / 10); // VarPlayer 300 (SPECIAL_ATTACK_PERCENT)
 		stats.addProperty("specialAttackEnabled", client.getVarpValue(301) == 1); // VarPlayer 301 (SA_ATTACK / SPECIAL_ATTACK_ENABLED)
-		int weaponId = getEquippedWeaponId();
-		stats.addProperty("weaponItemId", weaponId);
-		stats.addProperty("specialAttackAvailable", SPECIAL_ATTACK_WEAPONS.contains(weaponId));
+		stats.addProperty("specialAttackAvailable", SPECIAL_ATTACK_WEAPONS.contains(getEquippedWeaponId()));
 
 		root.add("stats", stats);
 
-		// Prayers
-		JsonObject prayers = new JsonObject();
-		prayers.addProperty("quickPrayerActive", client.getVarbitValue(Varbits.QUICK_PRAYER) == 1);
+		// Active prayers (as array of names)
+		JsonArray activePrayers = new JsonArray();
 		for (Prayer prayerEnum : Prayer.values())
 		{
-			boolean active = client.isPrayerActive(prayerEnum);
-			prayers.addProperty(prayerEnum.name().toLowerCase(), active);
+			if (client.isPrayerActive(prayerEnum))
+			{
+				activePrayers.add(prayerEnum.name().toLowerCase());
+			}
 		}
-		root.add("prayers", prayers);
+		root.add("activePrayers", activePrayers);
 
 		// Active tab
-		String activeTab = getActiveTab();
-		root.addProperty("activeTab", activeTab);
-
-		// Timestamp
-		root.addProperty("timestamp", System.currentTimeMillis());
+		root.addProperty("activeTab", getActiveTab());
 
 		return gson.toJson(root);
 	}
