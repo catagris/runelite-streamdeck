@@ -157,7 +157,8 @@ public class GameStateTracker
 	@Inject
 	private Client client;
 
-	private final Gson gson = new Gson();
+	@Inject
+	private Gson gson;
 
 	public String getStateJson()
 	{
