@@ -19,7 +19,6 @@ import okhttp3.Response;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @PluginDescriptor(
@@ -40,32 +39,21 @@ public class StreamDeckPlugin extends Plugin
 	@Inject
 	private GameStateTracker gameStateTracker;
 
-	private OkHttpClient httpClient;
+	@Inject
+	private OkHttpClient okHttpClient;
+
 	private boolean lastRequestFailed = false;
 
 	@Override
 	protected void startUp() throws Exception
 	{
 		log.info("Stream Deck Integration plugin started");
-
-		httpClient = new OkHttpClient.Builder()
-			.connectTimeout(2, TimeUnit.SECONDS)
-			.writeTimeout(2, TimeUnit.SECONDS)
-			.readTimeout(2, TimeUnit.SECONDS)
-			.build();
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
 		log.info("Stream Deck Integration plugin stopped");
-
-		if (httpClient != null)
-		{
-			httpClient.dispatcher().executorService().shutdown();
-			httpClient.connectionPool().evictAll();
-			httpClient = null;
-		}
 	}
 
 	@Subscribe
@@ -94,7 +82,7 @@ public class StreamDeckPlugin extends Plugin
 			.post(body)
 			.build();
 
-		httpClient.newCall(request).enqueue(new Callback()
+		okHttpClient.newCall(request).enqueue(new Callback()
 		{
 			@Override
 			public void onFailure(Call call, IOException e)
