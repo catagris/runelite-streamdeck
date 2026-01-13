@@ -3,22 +3,26 @@ package com.catagris.streamdeck;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.callback.ClientThread;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class StateHttpServer
 {
 	private HttpServer server;
 	private final GameStateTracker gameStateTracker;
+	private final ClientThread clientThread;
 	private final int port;
 
-	public StateHttpServer(GameStateTracker gameStateTracker, int port)
+	public StateHttpServer(GameStateTracker gameStateTracker, ClientThread clientThread, int port)
 	{
 		this.gameStateTracker = gameStateTracker;
+		this.clientThread = clientThread;
 		this.port = port;
 	}
 
@@ -72,7 +76,22 @@ public class StateHttpServer
 		{
 			try
 			{
-				String jsonResponse = gameStateTracker.getStateJson();
+				// Must invoke on client thread to access game state
+				CompletableFuture<String> future = new CompletableFuture<>();
+				clientThread.invoke(() -> {
+					try
+					{
+						String json = gameStateTracker.getStateJson();
+						future.complete(json);
+					}
+					catch (Exception e)
+					{
+						future.completeExceptionally(e);
+					}
+				});
+
+				// Wait for result (with timeout to prevent hanging)
+				String jsonResponse = future.get(5, java.util.concurrent.TimeUnit.SECONDS);
 				byte[] responseBytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
 
 				exchange.getResponseHeaders().set("Content-Type", "application/json");

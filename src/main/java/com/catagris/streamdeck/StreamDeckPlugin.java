@@ -4,6 +4,7 @@ import com.google.inject.Provides;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.events.GameStateChanged;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -29,6 +30,9 @@ public class StreamDeckPlugin extends Plugin
 	@Inject
 	private GameStateTracker gameStateTracker;
 
+	@Inject
+	private ClientThread clientThread;
+
 	private StateHttpServer httpServer;
 
 	@Override
@@ -53,7 +57,7 @@ public class StreamDeckPlugin extends Plugin
 	{
 		try
 		{
-			httpServer = new StateHttpServer(gameStateTracker, config.serverPort());
+			httpServer = new StateHttpServer(gameStateTracker, clientThread, config.serverPort());
 			httpServer.start();
 		}
 		catch (IOException e)
