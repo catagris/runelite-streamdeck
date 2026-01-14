@@ -8,22 +8,22 @@ import net.runelite.client.config.ConfigItem;
 public interface StreamDeckConfig extends Config
 {
 	@ConfigItem(
-		keyName = "enableClient",
-		name = "Enable Client",
-		description = "Enable sending game state to Stream Deck server"
+		keyName = "enableFileOutput",
+		name = "Enable File Output",
+		description = "Enable writing game state to a file for Stream Deck integration"
 	)
-	default boolean enableClient()
+	default boolean enableFileOutput()
 	{
 		return true;
 	}
 
 	@ConfigItem(
-		keyName = "serverUrl",
-		name = "Server URL",
-		description = "URL of the Stream Deck server to send game state to"
+		keyName = "outputFilePath",
+		name = "Output File Path",
+		description = "Path to write game state JSON (leave empty for default: .runelite/streamdeck-state.json)"
 	)
-	default String serverUrl()
+	default String outputFilePath()
 	{
-		return "http://localhost:8085/state";
+		return "";
 	}
 }

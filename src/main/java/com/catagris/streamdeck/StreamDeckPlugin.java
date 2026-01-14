@@ -5,30 +5,30 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.events.GameTick;
+import net.runelite.client.RuneLite;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 
 import javax.inject.Inject;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 @Slf4j
 @PluginDescriptor(
 	name = "Stream Deck Integration",
-	description = "Sends game state to Stream Deck server",
-	tags = {"integration", "streamdeck", "api"}
+	description = "Writes game state to a file for Stream Deck integration",
+	tags = {"integration", "streamdeck", "file"}
 )
 public class StreamDeckPlugin extends Plugin
 {
-	private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+	private static final String DEFAULT_FILENAME = "streamdeck-state.json";
 
 	@Inject
 	private Client client;
@@ -39,15 +39,14 @@ public class StreamDeckPlugin extends Plugin
 	@Inject
 	private GameStateTracker gameStateTracker;
 
-	@Inject
-	private OkHttpClient okHttpClient;
-
-	private boolean lastRequestFailed = false;
+	private File outputFile;
+	private boolean lastWriteFailed = false;
 
 	@Override
 	protected void startUp() throws Exception
 	{
-		log.info("Stream Deck Integration plugin started");
+		outputFile = getOutputFile();
+		log.info("Stream Deck Integration plugin started, writing to: {}", outputFile.getAbsolutePath());
 	}
 
 	@Override
@@ -59,7 +58,7 @@ public class StreamDeckPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
-		if (!config.enableClient())
+		if (!config.enableFileOutput())
 		{
 			return;
 		}
@@ -69,42 +68,53 @@ public class StreamDeckPlugin extends Plugin
 			return;
 		}
 
-		sendStateUpdate();
+		writeStateToFile();
 	}
 
-	private void sendStateUpdate()
+	private File getOutputFile()
+	{
+		String configPath = config.outputFilePath();
+		if (configPath != null && !configPath.trim().isEmpty())
+		{
+			return new File(configPath);
+		}
+		return new File(RuneLite.RUNELITE_DIR, DEFAULT_FILENAME);
+	}
+
+	private void writeStateToFile()
 	{
 		String json = gameStateTracker.getStateJson();
 
-		RequestBody body = RequestBody.create(JSON, json);
-		Request request = new Request.Builder()
-			.url(config.serverUrl())
-			.post(body)
-			.build();
-
-		okHttpClient.newCall(request).enqueue(new Callback()
+		try
 		{
-			@Override
-			public void onFailure(Call call, IOException e)
+			// Write to temp file first, then rename for atomic operation
+			File tempFile = new File(outputFile.getParentFile(), outputFile.getName() + ".tmp");
+			Files.writeString(tempFile.toPath(), json, StandardCharsets.UTF_8,
+				StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+
+			// Atomic rename
+			if (!tempFile.renameTo(outputFile))
 			{
-				if (!lastRequestFailed)
-				{
-					log.debug("Failed to send state to Stream Deck server: {}", e.getMessage());
-					lastRequestFailed = true;
-				}
+				// Fallback: direct write if rename fails (e.g., cross-filesystem)
+				Files.writeString(outputFile.toPath(), json, StandardCharsets.UTF_8,
+					StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+				tempFile.delete();
 			}
 
-			@Override
-			public void onResponse(Call call, Response response)
+			if (lastWriteFailed)
 			{
-				response.close();
-				if (lastRequestFailed)
-				{
-					log.debug("Connection to Stream Deck server restored");
-					lastRequestFailed = false;
-				}
+				log.debug("File write restored to: {}", outputFile.getAbsolutePath());
+				lastWriteFailed = false;
 			}
-		});
+		}
+		catch (IOException e)
+		{
+			if (!lastWriteFailed)
+			{
+				log.warn("Failed to write state to file {}: {}", outputFile.getAbsolutePath(), e.getMessage());
+				lastWriteFailed = true;
+			}
+		}
 	}
 
 	@Provides

@@ -2,18 +2,18 @@
 
 ![Stream Deck RuneLite](streamdeck-runelite.png)
 
-A RuneLite plugin that sends OSRS game state to a local Stream Deck server for integration.
+A RuneLite plugin that writes OSRS game state to a local file for Stream Deck integration.
 
 ## Features
 
-- Sends game state as JSON to your Stream Deck server
+- Writes game state as JSON to a local file every game tick (~600ms)
 - Tracks active prayers
 - Monitors player stats (HP, Prayer Points, Run Energy, Special Attack)
 - HP status tracking (normal, poisoned, venomed, diseased, and combinations)
 - Special attack availability detection (knows which weapons have specs)
 - Run toggle state
 - Detects active interface tab
-- Configurable server URL
+- Configurable output file path
 
 ## Installation
 
@@ -23,16 +23,20 @@ Install from the RuneLite Plugin Hub by searching for "Stream Deck Integration".
 
 In RuneLite settings, navigate to the Stream Deck Integration plugin:
 
-- **Enable Client**: Toggle sending game state on/off (default: ON)
-- **Server URL**: URL of your Stream Deck server (default: `http://localhost:8085/state`)
+- **Enable File Output**: Toggle writing game state on/off (default: ON)
+- **Output File Path**: Path to write JSON file (default: `.runelite/streamdeck-state.json`)
 
 ## How It Works
 
-The plugin sends game state to your Stream Deck server every game tick (~600ms) via HTTP POST. Your Stream Deck application must host a server to receive this data.
+The plugin writes game state to a local JSON file every game tick (~600ms). Your Stream Deck application reads this file to display game information.
+
+Default file location:
+- **Windows**: `%USERPROFILE%\.runelite\streamdeck-state.json`
+- **macOS/Linux**: `~/.runelite/streamdeck-state.json`
 
 ## JSON Format
 
-The plugin POSTs JSON data in the following format:
+The plugin writes JSON data in the following format:
 
 ```json
 {
@@ -80,11 +84,27 @@ The plugin POSTs JSON data in the following format:
 
 `none`, `combat`, `skills`, `quests`, `inventory`, `equipment`, `prayer`, `magic`, `grouping`, `account`, `friends`, `settings`, `emotes`, `music`
 
-## Security Notes
+## Stream Deck Integration
 
-- The plugin only makes outbound connections to localhost by default
-- No external network access unless you configure a different URL
-- Does not expose any account credentials or sensitive data
+Your Stream Deck application needs to:
+1. Watch/read the JSON file at the configured path
+2. Parse the JSON to extract game state
+3. Update Stream Deck buttons based on the data
+
+Example file watcher (Node.js):
+```javascript
+const fs = require('fs');
+const path = require('path');
+
+const filePath = path.join(process.env.USERPROFILE || process.env.HOME, '.runelite', 'streamdeck-state.json');
+
+fs.watch(filePath, (eventType) => {
+  if (eventType === 'change') {
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    console.log('HP:', data.stats.hp.current, '/', data.stats.hp.max);
+  }
+});
+```
 
 ## License
 
